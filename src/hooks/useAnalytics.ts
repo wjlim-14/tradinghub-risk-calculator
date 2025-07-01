@@ -1,6 +1,4 @@
 import { useCallback } from 'react'
-import { collection, addDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 import { ClickEvent } from '@/types'
 import { useAuth } from './useAuth'
 
@@ -13,19 +11,17 @@ export const useAnalytics = () => {
     metadata?: Record<string, any>
   ) => {
     try {
-      const clickEvent: ClickEvent = {
+      // Basic console logging for now - Firebase disabled
+      console.log('Click tracked:', {
         elementId,
         action,
         timestamp: new Date(),
         userId: user?.uid,
-        page: window.location.pathname,
+        page: typeof window !== 'undefined' ? window.location.pathname : '',
         metadata
-      }
+      })
 
-      // Save to Firebase for detailed analysis
-      await addDoc(collection(db, 'analytics'), clickEvent)
-
-      // Also send to Google Analytics if available
+      // Send to Google Analytics if available
       if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('event', action, {
           event_category: 'user_interaction',
