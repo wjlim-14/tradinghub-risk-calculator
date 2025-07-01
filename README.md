@@ -1,4 +1,4 @@
-# 🧮 InvestHub - Multi-Market Risk Management Calculator
+# 🧮 TradingHub - Multi-Market Risk Management Calculator
 
 A modern React/Next.js application for calculating optimal position sizes and managing trading risk across multiple global markets.
 
@@ -58,7 +58,7 @@ Result:
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/wjlim-14/tradinghub-risk-calculator.git
    cd react-investhub
    ```
 
