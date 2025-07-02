@@ -9,14 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@heroicons/react": "^2.0.18",
+    "@vercel/analytics": "^1.5.0",
+    "firebase": "^10.12.2",
+    "framer-motion": "^11.2.10",
     "next": "15.3.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "firebase": "^10.12.2",
     "react-firebase-hooks": "^5.1.1",
-    "@heroicons/react": "^2.0.18",
     "react-hot-toast": "^2.4.1",
-    "framer-motion": "^11.2.10",
     "recharts": "^2.12.7"
   },
   "devDependencies": {
