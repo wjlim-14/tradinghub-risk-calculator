@@ -20,6 +20,11 @@ interface CalculationResult {
   positionSizePercentage: number
   isValid: boolean
   warnings: string[]
+  // New fields for dual-check logic
+  riskBasedShares: number
+  capitalBasedShares: number
+  actualRiskAmount: number
+  actualRiskPercentage: number
 }
 
 const RiskCalculator = () => {
@@ -92,23 +97,39 @@ const RiskCalculator = () => {
     const stopLoss = parseFloat(formData.stopLoss)
     const marketInfo = getMarketInfo(formData.market)
 
+    // --- THE NEW DUAL-CHECK LOGIC ---
+    
+    // CHECK #1: THE RISK CHECK
+    // Calculates max shares based on the user's risk tolerance
     const riskAmount = principal * (riskPercentage / 100)
     const riskPerShare = buyPrice - stopLoss
-    const maxSharesCalculated = Math.floor(riskAmount / riskPerShare)
+    const riskBasedShares = (riskPerShare > 0) ? Math.floor(riskAmount / riskPerShare) : 0
+
+    // CHECK #2: THE WALLET CHECK  
+    // Calculates max shares based on the user's available capital
+    const capitalBasedShares = (buyPrice > 0) ? Math.floor(principal / buyPrice) : 0
+
+    // THE GOLDEN RULE: CHOOSE THE SMALLER NUMBER
+    // This ensures the position is both affordable and within risk limits
+    const finalShares = Math.min(riskBasedShares, capitalBasedShares)
     
-    // Calculate lots based on market
+    // Calculate lots based on market using the final safer share count
     let maxLots, maxShares
     if (marketInfo.usesLots) {
-      maxLots = Math.floor(maxSharesCalculated / marketInfo.lotSize)
+      maxLots = Math.floor(finalShares / marketInfo.lotSize)
       maxShares = maxLots * marketInfo.lotSize
     } else {
       // US market - no lot restrictions
       maxLots = 0 // Not applicable
-      maxShares = maxSharesCalculated
+      maxShares = finalShares
     }
     
     const positionValue = maxShares * buyPrice
     const positionSizePercentage = (positionValue / principal) * 100
+    
+    // NEW: Calculate the actual risk amount and percentage for the trade
+    const actualRiskAmount = maxShares * riskPerShare
+    const actualRiskPercentage = (principal > 0) ? (actualRiskAmount / principal) * 100 : 0
 
     const warnings: string[] = []
     
@@ -117,27 +138,16 @@ const RiskCalculator = () => {
       warnings.push('High risk: Consider risking no more than 2-5% per trade')
     }
     
-    if (positionSizePercentage > 20) {
-      warnings.push('Large position: Consider diversifying across multiple stocks')
-    }
-    
-    if (riskPerShare / buyPrice < 0.02) {
+    if (riskPerShare / buyPrice < 0.015) {
       warnings.push('Very tight stop loss: Consider if this allows enough room for normal price fluctuation')
     }
 
     // Market-specific warnings
-    if (marketInfo.usesLots) {
-      if (maxLots === 0) {
-        warnings.push(`Position size too small: Cannot buy even 1 lot (${marketInfo.lotSize} shares). Consider increasing capital or adjusting stop loss`)
-      }
-      
-      if (maxSharesCalculated >= marketInfo.lotSize && maxLots === 0) {
-        warnings.push(`Calculated ${maxSharesCalculated} shares, but minimum is 1 lot (${marketInfo.lotSize} shares)`)
-      }
-    } else {
-      // US market specific
-      if (maxShares === 0) {
-        warnings.push('Position size too small: Cannot buy even 1 share. Consider increasing capital or adjusting stop loss')
+    if (maxShares === 0) {
+      if (marketInfo.usesLots) {
+        warnings.push(`Cannot afford any shares with current capital or inputs. Consider increasing capital or adjusting stop loss`)
+      } else {
+        warnings.push('Cannot afford any shares with current capital or inputs. Consider increasing capital or adjusting stop loss')
       }
     }
 
@@ -148,8 +158,13 @@ const RiskCalculator = () => {
       positionValue,
       riskPerShare,
       positionSizePercentage,
-      isValid: marketInfo.usesLots ? maxLots > 0 : maxShares > 0,
-      warnings
+      isValid: maxShares > 0,
+      warnings,
+      // New fields for dual-check logic
+      riskBasedShares,
+      capitalBasedShares,
+      actualRiskAmount,
+      actualRiskPercentage
     })
   }
 
@@ -204,9 +219,9 @@ const RiskCalculator = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Input Form */}
-        <div className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <GlobeAltIcon className="h-4 w-4 inline mr-1" />
@@ -321,32 +336,47 @@ const RiskCalculator = () => {
         </div>
 
         {/* Results */}
-        <div className="space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           {result ? (
             <div className="space-y-4">
+              {/* Calculation Breakdown */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-blue-900 mb-3">
+                  How Your Shares Are Calculated
+                </h4>
+                <p className="text-sm text-blue-800 mb-3">
+                  We perform two simple checks to ensure you trade safely:
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">Risk Check (based on {formData.riskPercentage}% risk):</span>
+                    <span className="font-semibold text-blue-900">
+                      {result.riskBasedShares.toLocaleString()} shares
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">Wallet Check (based on your capital):</span>
+                    <span className="font-semibold text-blue-900">
+                      {result.capitalBasedShares.toLocaleString()} shares
+                    </span>
+                  </div>
+                  <div className="border-t border-blue-300 pt-2 mt-2">
+                    <p className="text-xs text-blue-600">
+                      The calculator automatically shows you the smaller and safer number of shares from these two checks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
-                Calculation Results
+                Final Calculation Results
               </h3>
 
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Risk Amount:</span>
-                  <span className="font-semibold text-red-600">
-                    {formatCurrency(result.riskAmount)}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Risk Per Share:</span>
-                  <span className="font-semibold">
-                    {formatCurrency(result.riskPerShare)}
-                  </span>
-                </div>
-                
                 {getMarketInfo(formData.market).usesLots ? (
                   <>
-                    <div className="flex justify-between border-t pt-3">
+                    <div className="flex justify-between border-b pb-3">
                       <span className="text-gray-600">Maximum Lots:</span>
                       <span className="font-bold text-2xl text-primary-600">
                         {result.maxLots.toLocaleString()} lots
@@ -361,7 +391,7 @@ const RiskCalculator = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="flex justify-between border-t pt-3">
+                  <div className="flex justify-between border-b pb-3">
                     <span className="text-gray-600">Maximum Shares:</span>
                     <span className="font-bold text-2xl text-primary-600">
                       {result.maxShares.toLocaleString()} shares
@@ -380,6 +410,13 @@ const RiskCalculator = () => {
                   <span className="text-gray-600">Position Size:</span>
                   <span className="font-semibold">
                     {result.positionSizePercentage.toFixed(1)}% of capital
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Actual Risk on this Trade:</span>
+                  <span className="font-semibold text-red-600">
+                    {formatCurrency(result.actualRiskAmount)} ({result.actualRiskPercentage.toFixed(2)}% of capital)
                   </span>
                 </div>
               </div>
@@ -425,8 +462,8 @@ const RiskCalculator = () => {
                           </>
                         )}
                         Set stop loss at <strong>{formatCurrency(parseFloat(formData.stopLoss))}</strong>.
-                        Maximum loss if stopped out: <strong>{formatCurrency(result.riskAmount)}</strong> 
-                        ({formData.riskPercentage}% of your capital).
+                        If stopped out, your actual loss will be <strong>{formatCurrency(result.actualRiskAmount)}</strong>
+                        (which is {result.actualRiskPercentage.toFixed(2)}% of your capital).
                       </p>
                     </div>
                   </div>
@@ -445,21 +482,24 @@ const RiskCalculator = () => {
       {/* Educational Info */}
       <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-blue-900 mb-3">
-          Risk Management Principles
+          How Our Dual-Check System Works
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
           <div>
-            <h4 className="font-medium mb-2">Position Sizing Formula:</h4>
-            <p>Risk Amount = Principal × Risk %</p>
+            <h4 className="font-medium mb-2">The Two Safety Checks:</h4>
+            <p><strong>1. Risk Check:</strong> Based on your max risk %</p>
             <p>Max Shares = Risk Amount ÷ (Buy Price - Stop Loss)</p>
-            <p>Max Lots = Max Shares ÷ 100 (1 lot = 100 shares)</p>
+            <p><strong>2. Wallet Check:</strong> Based on your available capital</p>
+            <p>Max Shares = Principal Capital ÷ Buy Price</p>
+            <p className="mt-2 font-medium">Final Result: Smaller of the two checks</p>
           </div>
           <div>
-            <h4 className="font-medium mb-2">Best Practices:</h4>
-            <p>• Never risk more than 2-5% per trade</p>
-            <p>• Diversify across multiple positions</p>
-            <p>• Always set stop losses before buying</p>
-            <p>• Lot sizes vary by market (see table below)</p>
+            <h4 className="font-medium mb-2">Why This Approach is Safer:</h4>
+            <p>• Prevents overexposure to single positions</p>
+            <p>• Ensures you never exceed your risk tolerance</p>
+            <p>• Guarantees you can afford the position</p>
+            <p>• Shows actual risk vs. intended risk</p>
+            <p>• Eliminates confusion for new traders</p>
           </div>
         </div>
       </div>
