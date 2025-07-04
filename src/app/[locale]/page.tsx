@@ -6,6 +6,7 @@ import RiskCalculator from '@/components/calculator/RiskCalculator'
 import MarketCard from '@/components/markets/MarketCard'
 import CryptoCard from '@/components/markets/CryptoCard'
 import { MarketSummary, CryptoData } from '@/types'
+import { getDictionary, type Locale } from '@/lib/dictionaries'
 import { 
   ChartBarIcon, 
   CurrencyDollarIcon, 
@@ -16,16 +17,29 @@ import {
   ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 
-export default function Home() {
+interface HomeProps {
+  params: Promise<{ locale: Locale }>
+}
+
+export default function Home({ params }: HomeProps) {
   const { trackPageView, trackClick } = useAnalytics()
   const [marketData, setMarketData] = useState<MarketSummary[]>([])
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([])
   const [loading, setLoading] = useState(true)
+  const [dict, setDict] = useState<any>(null)
+  const [locale, setLocale] = useState<Locale>('en')
 
   useEffect(() => {
+    const loadParams = async () => {
+      const { locale: paramLocale } = await params
+      setLocale(paramLocale)
+      const dictionary = getDictionary(paramLocale)
+      setDict(dictionary)
+    }
+    loadParams()
     trackPageView('Home')
     loadData()
-  }, [trackPageView])
+  }, [trackPageView, params])
 
   const loadData = async () => {
     // Simulate API calls with mock data
@@ -121,6 +135,10 @@ export default function Home() {
     trackClick(`tool_${tool}`, 'tool_interaction', { tool })
   }
 
+  if (!dict) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -133,10 +151,10 @@ export default function Home() {
               </div>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-fadeInUp">
-              Smart Risk Management
+              {dict.hero.title}
             </h1>
             <p className="text-xl md:text-2xl mb-8 opacity-90 animate-fadeInUp animation-delay-200">
-              Calculate optimal position sizes and manage trading risk like a pro
+              {dict.hero.subtitle}
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fadeInUp animation-delay-400">
@@ -147,28 +165,34 @@ export default function Home() {
                   document.getElementById('risk-calculator')?.scrollIntoView({ behavior: 'smooth' })
                 }}
               >
-                Try Calculator Now
+                {dict.riskCalculator.calculate}
               </button>
               <button 
                 className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition-colors"
                 onClick={() => handleHeroButtonClick('learn_risk_management')}
               >
-                Learn Risk Management
+                {dict.nav.learn}
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto animate-fadeInUp animation-delay-600">
               <div className="text-center">
                 <div className="text-3xl font-bold">2-5%</div>
-                <div className="text-lg opacity-80">Recommended Risk</div>
+                <div className="text-lg opacity-80">
+                  {locale === 'cn' ? '推荐风险' : 'Recommended Risk'}
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold">100%</div>
-                <div className="text-lg opacity-80">Free to Use</div>
+                <div className="text-lg opacity-80">
+                  {locale === 'cn' ? '免费使用' : 'Free to Use'}
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold">∞</div>
-                <div className="text-lg opacity-80">Calculations</div>
+                <div className="text-lg opacity-80">
+                  {locale === 'cn' ? '计算次数' : 'Calculations'}
+                </div>
               </div>
             </div>
           </div>
@@ -178,7 +202,7 @@ export default function Home() {
       {/* Risk Calculator - Main MVP Feature */}
       <section id="risk-calculator" className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <RiskCalculator />
+          <RiskCalculator locale={locale} dict={dict} />
         </div>
       </section>
 
@@ -187,10 +211,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Global Market Overview
+              {locale === 'cn' ? '全球市场概览' : 'Global Market Overview'}
             </h2>
             <p className="text-xl text-gray-600">
-              Real-time data from major stock exchanges
+              {locale === 'cn' ? '来自主要证券交易所的实时数据' : 'Real-time data from major stock exchanges'}
             </p>
           </div>
 
@@ -219,7 +243,7 @@ export default function Home() {
             {/* Commodities */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Commodities
+                {dict.nav.commodities}
               </h2>
               <div className="space-y-4">
                 <div className="bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
@@ -255,7 +279,7 @@ export default function Home() {
             {/* Forex */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Major Forex Pairs
+                {locale === 'cn' ? '主要外汇对' : 'Major Forex Pairs'}
               </h2>
               <div className="space-y-4">
                 {[
@@ -284,10 +308,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Cryptocurrency
+              {dict.nav.crypto}
             </h2>
             <p className="text-xl text-gray-600">
-              Top cryptocurrencies by market cap
+              {locale === 'cn' ? '按市值排名的顶级加密货币' : 'Top cryptocurrencies by market cap'}
             </p>
           </div>
 
@@ -314,10 +338,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Investment Tools
+              {locale === 'cn' ? '投资工具' : 'Investment Tools'}
             </h2>
             <p className="text-xl text-gray-600">
-              Powerful tools to help you make informed investment decisions
+              {locale === 'cn' ? '帮助您做出明智投资决策的强大工具' : 'Powerful tools to help you make informed investment decisions'}
             </p>
           </div>
 
@@ -325,26 +349,26 @@ export default function Home() {
             {[
               {
                 icon: MagnifyingGlassIcon,
-                title: 'Stock Screeners',
-                description: 'Filter stocks by market cap, P/E ratio, dividend yield, and more',
+                title: dict.nav.screeners,
+                description: locale === 'cn' ? '按市值、市盈率、股息收益率等筛选股票' : 'Filter stocks by market cap, P/E ratio, dividend yield, and more',
                 id: 'screeners'
               },
               {
                 icon: CalculatorIcon,
-                title: 'Investment Calculators',
-                description: 'Calculate returns, compound interest, and portfolio allocation',
+                title: dict.nav.calculators,
+                description: locale === 'cn' ? '计算收益、复利和投资组合分配' : 'Calculate returns, compound interest, and portfolio allocation',
                 id: 'calculators'
               },
               {
                 icon: ChartBarIcon,
-                title: 'Technical Analysis',
-                description: 'Advanced charting tools with indicators and pattern recognition',
+                title: dict.nav.analysis,
+                description: locale === 'cn' ? '带有指标和形态识别的高级图表工具' : 'Advanced charting tools with indicators and pattern recognition',
                 id: 'technical_analysis'
               },
               {
                 icon: BellIcon,
-                title: 'Price Alerts',
-                description: 'Get notified when your stocks reach target prices',
+                title: locale === 'cn' ? '价格提醒' : 'Price Alerts',
+                description: locale === 'cn' ? '当您的股票达到目标价格时获得通知' : 'Get notified when your stocks reach target prices',
                 id: 'alerts'
               }
             ].map((tool, index) => (

@@ -10,6 +10,7 @@ import {
   InformationCircleIcon,
   GlobeAltIcon
 } from '@heroicons/react/24/outline'
+import { type Locale } from '@/lib/dictionaries'
 
 interface CalculationResult {
   riskAmount: number
@@ -27,7 +28,12 @@ interface CalculationResult {
   actualRiskPercentage: number
 }
 
-const RiskCalculator = () => {
+interface RiskCalculatorProps {
+  locale: Locale
+  dict: any
+}
+
+const RiskCalculator = ({ locale, dict }: RiskCalculatorProps) => {
   const { trackClick } = useAnalytics()
   const [formData, setFormData] = useState({
     principal: '',
@@ -48,23 +54,23 @@ const RiskCalculator = () => {
     const stopLoss = parseFloat(formData.stopLoss)
 
     if (!formData.principal || principal <= 0) {
-      newErrors.principal = 'Principal must be greater than 0'
+      newErrors.principal = dict.errors.principalRequired
     }
     
     if (!formData.riskPercentage || riskPercentage <= 0 || riskPercentage > 100) {
-      newErrors.riskPercentage = 'Risk percentage must be between 0.1% and 100%'
+      newErrors.riskPercentage = dict.errors.riskRequired
     }
     
     if (!formData.buyPrice || buyPrice <= 0) {
-      newErrors.buyPrice = 'Buy price must be greater than 0'
+      newErrors.buyPrice = dict.errors.buyPriceRequired
     }
     
     if (!formData.stopLoss || stopLoss <= 0) {
-      newErrors.stopLoss = 'Stop loss must be greater than 0'
+      newErrors.stopLoss = dict.errors.stopLossRequired
     }
     
     if (buyPrice && stopLoss && stopLoss >= buyPrice) {
-      newErrors.stopLoss = 'Stop loss must be lower than buy price'
+      newErrors.stopLoss = dict.errors.stopLossInvalid
     }
 
     setErrors(newErrors)
@@ -135,20 +141,16 @@ const RiskCalculator = () => {
     
     // Add warnings based on common risk management rules
     if (riskPercentage > 5) {
-      warnings.push('High risk: Consider risking no more than 2-5% per trade')
+      warnings.push(dict.errors.highRisk)
     }
     
     if (riskPerShare / buyPrice < 0.015) {
-      warnings.push('Very tight stop loss: Consider if this allows enough room for normal price fluctuation')
+      warnings.push(dict.errors.tightStopLoss)
     }
 
     // Market-specific warnings
     if (maxShares === 0) {
-      if (marketInfo.usesLots) {
-        warnings.push(`Cannot afford any shares with current capital or inputs. Consider increasing capital or adjusting stop loss`)
-      } else {
-        warnings.push('Cannot afford any shares with current capital or inputs. Consider increasing capital or adjusting stop loss')
-      }
+      warnings.push(dict.errors.cannotAfford)
     }
 
     setResult({
@@ -214,8 +216,8 @@ const RiskCalculator = () => {
       <div className="flex items-center mb-6">
         <CalculatorIcon className="h-8 w-8 text-primary-600 mr-3" />
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Risk Management Calculator</h2>
-          <p className="text-gray-600">Calculate optimal position size based on your risk tolerance</p>
+          <h2 className="text-2xl font-bold text-gray-900">{dict.riskCalculator.title}</h2>
+          <p className="text-gray-600">{dict.riskCalculator.subtitle}</p>
         </div>
       </div>
 
@@ -225,24 +227,24 @@ const RiskCalculator = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <GlobeAltIcon className="h-4 w-4 inline mr-1" />
-              Market
+              {dict.riskCalculator.market}
             </label>
             <select
               value={formData.market}
               onChange={(e) => handleInputChange('market', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
-              <option value="MY">🇲🇾 Malaysia (KLSE)</option>
+              <option value="MY">🇲🇾 {dict.markets.malaysia}</option>
               <option value="SG">🇸🇬 Singapore (SGX)</option>
-              <option value="CN">🇨🇳 China A-Shares</option>
-              <option value="HK">🇭🇰 Hong Kong (HKEX)</option>
+              <option value="CN">🇨🇳 {dict.markets.china}</option>
+              <option value="HK">🇭🇰 {dict.markets.hongkong}</option>
               <option value="US">🇺🇸 United States (NYSE/NASDAQ)</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Principal Capital ({getMarketInfo(formData.market).currency})
+              {dict.riskCalculator.principalCapital} ({getMarketInfo(formData.market).currency})
             </label>
             <input
               type="number"
@@ -260,7 +262,7 @@ const RiskCalculator = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Maximum Risk Percentage (%)
+              {dict.riskCalculator.maxRiskPercentage}
             </label>
             <input
               type="number"
@@ -277,13 +279,13 @@ const RiskCalculator = () => {
               <p className="text-red-500 text-sm mt-1">{errors.riskPercentage}</p>
             )}
             <p className="text-sm text-gray-500 mt-1">
-              Recommended: 1-3% for conservative, 2-5% for moderate risk
+              {locale === 'cn' ? '推荐：保守型 1-3%，适中风险 2-5%' : 'Recommended: 1-3% for conservative, 2-5% for moderate risk'}
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Buy Price ({getMarketInfo(formData.market).currency})
+              {dict.riskCalculator.buyPrice} ({getMarketInfo(formData.market).currency})
             </label>
             <input
               type="number"
@@ -302,7 +304,7 @@ const RiskCalculator = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Stop Loss Price ({getMarketInfo(formData.market).currency})
+              {dict.riskCalculator.stopLoss} ({getMarketInfo(formData.market).currency})
             </label>
             <input
               type="number"
@@ -324,13 +326,13 @@ const RiskCalculator = () => {
               onClick={calculateRisk}
               className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-lg font-medium transition-colors"
             >
-              Calculate Position Size
+              {dict.riskCalculator.calculate}
             </button>
             <button
               onClick={resetCalculator}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Reset
+              {dict.riskCalculator.reset}
             </button>
           </div>
         </div>
