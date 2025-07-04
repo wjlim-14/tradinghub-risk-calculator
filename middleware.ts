@@ -3,25 +3,10 @@ import type { NextRequest } from 'next/server'
 
 import { locales, defaultLocale } from './src/lib/dictionaries'
 
-// Get the preferred locale, similar to the above or using a library
+// Always default to English for root domain access
 function getLocale(request: NextRequest): string {
-  // Check if there is any supported locale in the pathname
-  const { pathname } = request.nextUrl
-  const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-  )
-
-  if (pathnameHasLocale) return pathname.split('/')[1]
-
-  // Check the Accept-Language header
-  const acceptLanguage = request.headers.get('accept-language')
-  if (acceptLanguage) {
-    // Simple language detection
-    if (acceptLanguage.includes('zh')) return 'cn'
-    if (acceptLanguage.includes('en')) return 'en'
-  }
-
-  return defaultLocale
+  // Always return 'en' as default locale for https://tradinghub-risk-calculator.vercel.app/
+  return 'en'
 }
 
 export function middleware(request: NextRequest) {
