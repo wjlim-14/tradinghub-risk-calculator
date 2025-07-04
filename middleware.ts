@@ -1,33 +1,33 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-import { locales, defaultLocale } from './src/lib/dictionaries'
-
-// Always default to English for root domain access
-function getLocale(request: NextRequest): string {
-  // Always return 'en' as default locale for https://tradinghub-risk-calculator.vercel.app/
-  return 'en'
-}
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Check if there is any supported locale in the pathname
+  // Handle root path specifically
+  if (pathname === '/') {
+    const url = new URL('/en', request.url)
+    return NextResponse.redirect(url)
+  }
+
+  // Check if path already has a locale
+  const locales = ['en', 'cn']
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   )
 
-  // Redirect if there is no locale
+  // If no locale, redirect to English
   if (!pathnameHasLocale) {
-    const locale = getLocale(request)
-    const newUrl = new URL(`/${locale}${pathname}`, request.url)
-    return NextResponse.redirect(newUrl)
+    const url = new URL(`/en${pathname}`, request.url)
+    return NextResponse.redirect(url)
   }
+
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    // Skip all internal paths (_next)
-    '/((?!_next|api|favicon.ico).*)',
+    // Match all paths except static files and Next.js internals
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.gif$|.*\\.svg$).*)',
   ],
 }
